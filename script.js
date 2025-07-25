@@ -22,7 +22,8 @@ uploadBtn.addEventListener('click', () => {
   const form = new FormData();
   form.append('image', selectedFile);
 
-  fetch('https://your-replit-url/ocr', { // replace with your actual Replit URL
+  fetch('https://208607ef-e640-40f2-a7df-31a9350f3992-00-l1oue39r4t2e.worf.replit.dev/ocr', {
+{ // replace with your actual Replit URL
     method: 'POST',
     body: form
   })
