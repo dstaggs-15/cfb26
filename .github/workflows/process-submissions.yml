@@ -1,0 +1,115 @@
+name: Process Dynasty Submissions
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: read
+
+jobs:
+  append-json:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'submission')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Parse Issue Form → env
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || ''
+            const lines = body.split('\n').map(l => l.trim())
+            const get = (label) => {
+              const idx = lines.findIndex(l => l.replace(/\*/g,'').toLowerCase() === label.toLowerCase())
+              if (idx === -1) return ''
+              for (let i = idx+1; i < lines.length; i++) { if (lines[i]) return lines[i] }
+              return ''
+            }
+            const type = get('What are you submitting?')
+            const payload = {
+              type,
+              year: get('Year'),
+              homeCoach: get('Home Coach (Cameron, Tucker, Daniel, Eli)'),
+              awayCoach: get('Away Coach (Cameron, Tucker, Daniel, Eli)'),
+              homeTeam: get('Home Team (School name)'),
+              awayTeam: get('Away Team (School name)'),
+              homeScore: get('Home Score'),
+              awayScore: get('Away Score'),
+              winner: get('Winner (Coach name)'),
+              heismanPlayer: get('Heisman Player'),
+              heismanSchool: get('Heisman School'),
+              nattyTeam: get('National Champion Team'),
+              nattyCoach: get('Champion Coach'),
+              nattyRecord: get('Champion Team Record (e.g., 14-1)')
+            }
+            core.setOutput('json', JSON.stringify(payload))
+
+      - name: Append to JSON
+        run: |
+          echo "Form: ${{ steps.parse.outputs.json }}"
+          node -e '
+            const fs = require("fs");
+            const p = JSON.parse(process.env.FORM_JSON);
+            const year = Number(p.year)||null;
+            const save = (path, arr) => fs.writeFileSync(path, JSON.stringify(arr, null, 2));
+
+            if (p.type === "Game Result") {
+              const rec = {
+                year,
+                homeCoach: p.homeCoach, awayCoach: p.awayCoach,
+                homeTeam: p.homeTeam, awayTeam: p.awayTeam,
+                homeScore: Number(p.homeScore)||0, awayScore: Number(p.awayScore)||0,
+                winner: p.winner,
+                coaches: [p.homeCoach, p.awayCoach]
+              };
+              const path = "data/games.json";
+              const arr = JSON.parse(fs.readFileSync(path));
+              const key = r => [r.year,r.homeCoach,r.awayCoach,r.homeTeam,r.awayTeam,r.homeScore,r.awayScore].join("|");
+              const exists = new Set(arr.map(key));
+              if (!exists.has(key(rec))) arr.push(rec);
+              save(path, arr);
+            } else if (p.type === "Heisman Winner") {
+              const rec = { year, player: p.heismanPlayer, school: p.heismanSchool };
+              const path = "data/heisman.json";
+              const arr = JSON.parse(fs.readFileSync(path));
+              const idx = arr.findIndex(x => x.year === year);
+              if (idx >= 0) arr[idx] = rec; else arr.push(rec);
+              save(path, arr);
+            } else if (p.type === "National Champion") {
+              const rec = { year, team: p.nattyTeam, coach: p.nattyCoach, record: p.nattyRecord||"" };
+              const path = "data/nationals.json";
+              const arr = JSON.parse(fs.readFileSync(path));
+              const idx = arr.findIndex(x => x.year === year);
+              if (idx >= 0) arr[idx] = rec; else arr.push(rec);
+              save(path, arr);
+            } else {
+              console.log("Unknown type; skipping");
+            }
+          '
+        env:
+          FORM_JSON: ${{ steps.parse.outputs.json }}
+
+      - name: Commit & push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(data): append from issue #${{ github.event.issue.number }}"
+
+      - name: Close issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed',
+              state_reason: 'completed'
+            })
