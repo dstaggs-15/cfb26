@@ -1,0 +1,62 @@
+name: Sync NCAA Colors
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * *'  # nightly 05:00 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Fetch upstream colors & write data/colors.json
+        run: |
+          node -e '
+            const https = require("https");
+            const fs = require("fs");
+
+            // Source dataset of NCAA team colors
+            const url = "https://raw.githubusercontent.com/glidej/ncaa-team-colors/master/ncaa_team_colors.json";
+
+            // Simple name normalizer so your labels match the dataset keys.
+            const normalizeName = (s) => s
+              .replace(/&/g, "and")
+              .replace(/\s+/g, " ")
+              .trim();
+
+            https.get(url, (res) => {
+              let data=""; 
+              res.on("data", d => data += d); 
+              res.on("end", () => {
+                const upstream = JSON.parse(data); // [{ name, colors: ["#hex", ...] }]
+                const out = {};
+                upstream.forEach(t => {
+                  const name = t.name.trim();
+                  const [primary, secondary] = t.colors || [];
+                  if (primary) out[name] = { primary, secondary: secondary || "#000000" };
+                });
+
+                // OPTIONAL: add/override any you care about by exact label:
+                const overrides = {
+                  "Texas A&M": out["Texas A and M"] || { primary: "#500000", secondary: "#FFFFFF" }
+                };
+                Object.assign(out, overrides);
+
+                fs.mkdirSync("data", { recursive: true });
+                fs.writeFileSync("data/colors.json", JSON.stringify(out, null, 2));
+              });
+            }).on("error", (e) => { 
+              console.error("Failed to fetch colors:", e);
+              process.exit(1);
+            });
+          '
+      - name: Commit & push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(colors): sync NCAA colors from upstream"
