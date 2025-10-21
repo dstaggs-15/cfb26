@@ -1,0 +1,13 @@
+[
+  {
+    "year": 2025,
+    "homeCoach": "Eli",
+    "awayCoach": "Tucker",
+    "homeTeam": "Oregon",
+    "awayTeam": "Florida",
+    "homeScore": 31,
+    "awayScore": 28,
+    "winner": "Eli",
+    "coaches": ["Eli", "Tucker"]
+  }
+]
