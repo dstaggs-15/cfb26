@@ -1,0 +1,6 @@
+[
+  { "name": "Daniel",  "currentTeam": "LSU",       "history": [{ "team": "LSU",       "from": 2025 }] },
+  { "name": "Tucker",  "currentTeam": "Florida",   "history": [{ "team": "Florida",   "from": 2025 }] },
+  { "name": "Cameron", "currentTeam": "Texas A&M", "history": [{ "team": "Texas A&M", "from": 2025 }] },
+  { "name": "Eli",     "currentTeam": "Oregon",    "history": [{ "team": "Oregon",    "from": 2025 }] }
+]
