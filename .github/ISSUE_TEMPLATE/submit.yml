@@ -1,0 +1,102 @@
+name: Submit Dynasty Update
+description: Add a game result, Heisman winner, or national champion.
+labels: [submission]
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: What are you submitting?
+      options:
+        - Game Result
+        - Heisman Winner
+        - National Champion
+    validations:
+      required: true
+
+  # Shared
+  - type: input
+    id: year
+    attributes:
+      label: Year
+      description: e.g., 2025
+      placeholder: 2025
+    validations:
+      required: true
+
+  # Game Result
+  - type: input
+    id: homeCoach
+    attributes:
+      label: Home Coach (Cameron, Tucker, Daniel, Eli)
+    validations:
+      required: false
+  - type: input
+    id: awayCoach
+    attributes:
+      label: Away Coach (Cameron, Tucker, Daniel, Eli)
+    validations:
+      required: false
+  - type: input
+    id: homeTeam
+    attributes:
+      label: Home Team (School name)
+    validations:
+      required: false
+  - type: input
+    id: awayTeam
+    attributes:
+      label: Away Team (School name)
+    validations:
+      required: false
+  - type: input
+    id: homeScore
+    attributes:
+      label: Home Score
+    validations:
+      required: false
+  - type: input
+    id: awayScore
+    attributes:
+      label: Away Score
+    validations:
+      required: false
+  - type: input
+    id: winner
+    attributes:
+      label: Winner (Coach name)
+    validations:
+      required: false
+
+  # Heisman
+  - type: input
+    id: heismanPlayer
+    attributes:
+      label: Heisman Player
+    validations:
+      required: false
+  - type: input
+    id: heismanSchool
+    attributes:
+      label: Heisman School
+    validations:
+      required: false
+
+  # National Champion
+  - type: input
+    id: nattyTeam
+    attributes:
+      label: National Champion Team
+    validations:
+      required: false
+  - type: input
+    id: nattyCoach
+    attributes:
+      label: Champion Coach
+    validations:
+      required: false
+  - type: input
+    id: nattyRecord
+    attributes:
+      label: Champion Team Record (e.g., 14-1)
+    validations:
+      required: false
