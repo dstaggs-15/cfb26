@@ -1,18 +1,110 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
-  <title>CFB26 Stat Tracker</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EA CFB 26 Dynasty Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            bg: '#0b0f14',
+            card: '#111827',
+            ink: '#e5e7eb',
+            subtle: '#9ca3af',
+            accent: '#06b6d4'
+          },
+          boxShadow: { soft: '0 8px 24px rgba(0,0,0,0.3)' }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    html,body{background:#0b0f14;color:#e5e7eb;font-family:Inter,ui-sans-serif,system-ui}
+  </style>
 </head>
-<body>
-  <div class="container">
-    <h1>📸 Upload your CFB26 screenshot</h1>
-    <input type="file" id="imageInput" accept="image/*" />
-    <img id="preview" src="" alt="Preview" style="display:none; max-width: 300px;" />
-    <button id="uploadBtn" disabled>Upload & Analyze</button>
-    <pre id="output"></pre>
-  </div>
-  <script src="script.js"></script>
+<body class="min-h-screen">
+  <header class="sticky top-0 z-30 bg-bg/80 backdrop-blur border-b border-white/5">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
+      <div class="text-xl font-bold">EA CFB 26 Dynasty</div>
+      <nav class="ml-auto flex gap-2 text-sm">
+        <button id="tabGames" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10">Games</button>
+        <button id="tabHeisman" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10">Heisman</button>
+        <button id="tabNattys" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10">Nattys</button>
+        <a id="submitLink" target="_blank" class="px-3 py-1.5 rounded-xl bg-accent/20 hover:bg-accent/30 text-accent font-semibold" href="#">
+          Submit Result →
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 grid gap-6">
+    <section class="grid md:grid-cols-4 gap-3">
+      <div class="bg-card rounded-2xl p-4 shadow-soft">
+        <div class="text-xs uppercase text-subtle">Filter</div>
+        <label class="block text-sm mt-2">Coach</label>
+        <select id="coachFilter" class="w-full mt-1 bg-white/5 rounded-lg px-3 py-2"></select>
+        <label class="block text-sm mt-3">Year</label>
+        <input id="yearFilter" type="number" class="w-full mt-1 bg-white/5 rounded-lg px-3 py-2" placeholder="e.g., 2025" />
+      </div>
+      <div class="bg-card rounded-2xl p-4 shadow-soft md:col-span-3">
+        <div class="text-xs uppercase text-subtle">Legend</div>
+        <div id="legend" class="mt-2 flex flex-wrap gap-2"></div>
+      </div>
+    </section>
+
+    <section id="panelGames" class="grid gap-3">
+      <h2 class="text-lg font-semibold">Head-to-Head Games</h2>
+      <div class="overflow-x-auto rounded-2xl shadow-soft">
+        <table class="w-full text-sm">
+          <thead class="bg-white/5">
+            <tr>
+              <th class="text-left p-3">Year</th>
+              <th class="text-left p-3">Coach (Home)</th>
+              <th class="text-left p-3">Coach (Away)</th>
+              <th class="text-left p-3">Teams</th>
+              <th class="text-left p-3">Score</th>
+              <th class="text-left p-3">Winner</th>
+            </tr>
+          </thead>
+          <tbody id="gamesBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="panelHeisman" class="hidden grid gap-3">
+      <h2 class="text-lg font-semibold">Heisman Winners</h2>
+      <div class="overflow-x-auto rounded-2xl shadow-soft">
+        <table class="w-full text-sm">
+          <thead class="bg-white/5">
+            <tr><th class="text-left p-3">Year</th><th class="text-left p-3">Player</th><th class="text-left p-3">School</th></tr>
+          </thead>
+          <tbody id="heismanBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="panelNattys" class="hidden grid gap-3">
+      <h2 class="text-lg font-semibold">National Champions</h2>
+      <div class="overflow-x-auto rounded-2xl shadow-soft">
+        <table class="w-full text-sm">
+          <thead class="bg-white/5">
+            <tr><th class="text-left p-3">Year</th><th class="text-left p-3">Champion</th><th class="text-left p-3">Coach</th><th class="text-left p-3">Record</th></tr>
+          </thead>
+          <tbody id="nattyBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto p-6 text-center text-subtle">
+    Built for the boys: Cameron • Tucker • Daniel • Eli
+  </footer>
+
+  <script src="./app.js"></script>
 </body>
 </html>
