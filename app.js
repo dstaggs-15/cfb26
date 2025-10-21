@@ -75,5 +75,6 @@
   renderGames();renderHeisman();renderNattys();
 
   const submitLink=document.getElementById('submitLink');
-  submitLink.href='https://github.com/USERNAME/ea-cfb26-dynasty/issues/new?template=submit.yml'; // replace USERNAME
+// At the bottom of app.js, set the submit link
+submitLink.href = 'https://github.com/dstaggs-15/cfb26/issues/new?template=submit.yml';
 })();
