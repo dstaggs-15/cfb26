@@ -1,7 +1,7 @@
 name: Heisman Winner
-description: Record a Heisman winner
-title: "[Heisman] Player (Year)"
+description: Submit a Heisman winner
 labels: ["submission","heisman"]
+title: "[Heisman] Player (Year)"
 body:
   - type: input
     id: year
