@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "year": 2036,
+    "homeCoach": "Tucker",
+    "awayCoach": "Daniel",
+    "homeTeam": "Florida",
+    "awayTeam": "LSU",
+    "homeScore": 52,
+    "awayScore": 51,
+    "winner": "Tucker",
+    "coaches": [
+      "Tucker",
+      "Daniel"
+    ]
+  }
+]
