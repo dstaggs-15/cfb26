@@ -1,130 +1,140 @@
-// --- Configure this to your repo path ---
-const SUBMIT_URL = 'https://github.com/dstaggs-15/cfb26/issues/new?template=submit.yml';
+// === Config ===
+const SUBMIT_URL = 'https://github.com/dstaggs-15/cfb26/issues/new/choose';
+const DATA_DIR = './data';
 
-// Always set the link immediately so it works even if data loading fails
-const submitLink = document.getElementById('submitLink');
-if (submitLink) submitLink.href = SUBMIT_URL;
+// === Elements ===
+const submitLink = document.querySelector('#submitLink');
+const tabGames = document.querySelector('#tabGames');
+const tabHeisman = document.querySelector('#tabHeisman');
+const tabNattys = document.querySelector('#tabNattys');
 
-// Small helper: safe fetch that returns a default value on error
-async function loadJson(path, fallback) {
+const panelGames = document.querySelector('#panelGames');
+const panelHeisman = document.querySelector('#panelHeisman');
+const panelNattys = document.querySelector('#panelNattys');
+
+const coachFilter = document.querySelector('#coachFilter');
+const yearFilter = document.querySelector('#yearFilter');
+const legend = document.querySelector('#legend');
+
+const gamesBody = document.querySelector('#gamesBody');
+const heismanBody = document.querySelector('#heismanBody');
+const nattyBody = document.querySelector('#nattyBody');
+
+// === State ===
+let COLORS = {};
+let COACHES = ["Cameron","Tucker","Daniel","Eli"];
+let GAMES = [];
+let HEISMAN = [];
+let NATIONALS = [];
+
+// === Helpers ===
+const safeFetchJson = async (path, fallback) => {
   try {
     const r = await fetch(path, { cache: 'no-store' });
-    if (!r.ok) throw new Error(`${path} -> ${r.status}`);
-    return await r.json();
-  } catch (e) {
-    console.error('Failed to load', path, e);
-    return fallback;
-  }
-}
+    if (!r.ok) return fallback;
+    const t = await r.text();
+    if (!t.trim()) return fallback;
+    return JSON.parse(t);
+  } catch { return fallback; }
+};
 
-(async () => {
-  // Load everything with safe fallbacks so the rest of the code still runs
-  const colors   = await loadJson('./data/colors.json',   {});
-  const coaches  = await loadJson('./data/coaches.json',  []);
-  const games    = await loadJson('./data/games.json',    []);
-  const heisman  = await loadJson('./data/heisman.json',  []);
-  const nationals= await loadJson('./data/nationals.json',[]);
+const chip = (name) => {
+  const c = COLORS[name];
+  const bg = c?.primary || '#374151';
+  const fg = c?.secondary || '#cbd5e1';
+  return `<span class="px-2 py-0.5 rounded-lg text-xs" style="background:${bg}; color:${fg}">${name}</span>`;
+};
 
-  // Tabs
-  const tabs = { tabGames: 'panelGames', tabHeisman: 'panelHeisman', tabNattys: 'panelNattys' };
-  Object.entries(tabs).forEach(([btnId, panelId]) => {
-    const btn = document.getElementById(btnId);
-    if (!btn) return;
-    btn.onclick = () => {
-      Object.values(tabs).forEach(id => document.getElementById(id)?.classList.add('hidden'));
-      document.getElementById(panelId)?.classList.remove('hidden');
-    };
-  });
+const showPanel = (games=false, heis=false, natty=false) => {
+  panelGames.classList.toggle('hidden', !games);
+  panelHeisman.classList.toggle('hidden', !heis);
+  panelNattys.classList.toggle('hidden', !natty);
+};
 
-  // Filters
-  const coachFilter = document.getElementById('coachFilter');
-  const yearFilter  = document.getElementById('yearFilter');
+// === Renderers ===
+const renderLegend = () => {
+  const teams = new Set();
+  GAMES.forEach(g => { if (g.homeTeam) teams.add(g.homeTeam); if (g.awayTeam) teams.add(g.awayTeam); });
+  legend.innerHTML = [...teams].slice(0, 40).map(t => chip(t)).join(' ');
+};
 
-  // Populate coach list
-  if (coachFilter) {
-    const coachNames = coaches.map(c => c.name);
-    coachFilter.innerHTML = ['All', ...coachNames].map(n => `<option>${n}</option>`).join('');
-  }
+const renderFilters = () => {
+  const uniq = new Set(COACHES);
+  GAMES.forEach(g => { if (g.homeCoach) uniq.add(g.homeCoach); if (g.awayCoach) uniq.add(g.awayCoach); });
+  coachFilter.innerHTML = `<option value="">All coaches</option>` + [...uniq].sort().map(c => `<option>${c}</option>`).join('');
+};
 
-  // Legend
-  const legend = document.getElementById('legend');
-  if (legend) {
-    Object.entries(colors).forEach(([team, palette]) => {
-      const chip = document.createElement('div');
-      chip.className = 'px-2 py-1 rounded-lg border border-white/10';
-      chip.style.background = palette?.primary || '#374151';
-      chip.style.color = '#fff';
-      chip.innerHTML = `<span class="font-semibold">${team}</span>`;
-      legend.appendChild(chip);
-    });
-  }
+const applyFilters = (rows) => {
+  const coach = coachFilter.value.trim();
+  const year = Number(yearFilter.value) || null;
+  return rows.filter(r => (!coach || r.coaches?.includes(coach)) && (!year || r.year === year));
+};
 
-  // UI helpers
-  const teamBadge = (team) => {
-    const palette = colors[team] || { primary: '#374151' };
-    return `<span class="px-2 py-1 rounded-md text-xs font-semibold" style="background:${palette.primary};color:#fff">${team}</span>`;
-  };
-  const applyFilters = (rows, coachKey, yearKey) => {
-    const coachVal = coachFilter?.value || 'All';
-    const yearVal  = (yearFilter?.value || '').trim();
-    return rows.filter(r => {
-      const coachPass = coachVal === 'All' || r[coachKey]?.includes(coachVal);
-      const yearPass  = !yearVal || String(r[yearKey]) === String(yearVal);
-      return coachPass && yearPass;
-    });
-  };
+const renderGames = () => {
+  const rows = applyFilters([...GAMES]).sort((a,b)=> (b.year||0)-(a.year||0));
+  gamesBody.innerHTML = rows.map(r => `
+    <tr class="border-t border-white/5">
+      <td class="p-3">${r.year ?? ''}</td>
+      <td class="p-3">${r.homeCoach ?? ''}</td>
+      <td class="p-3">${r.awayCoach ?? ''}</td>
+      <td class="p-3 flex gap-2">${chip(r.homeTeam||'')}${chip(r.awayTeam||'')}</td>
+      <td class="p-3">${r.homeScore ?? ''} - ${r.awayScore ?? ''}</td>
+      <td class="p-3">${r.winner ?? ''}</td>
+    </tr>
+  `).join('');
+};
 
-  // Renderers
-  const gamesBody   = document.getElementById('gamesBody');
-  const heismanBody = document.getElementById('heismanBody');
-  const nattyBody   = document.getElementById('nattyBody');
+const renderHeisman = () => {
+  heismanBody.innerHTML = [...HEISMAN].sort((a,b)=> (b.year||0)-(a.year||0)).map(h => `
+    <tr class="border-t border-white/5">
+      <td class="p-3">${h.year ?? ''}</td>
+      <td class="p-3">${h.player ?? ''}</td>
+      <td class="p-3">${chip(h.school||'')}</td>
+    </tr>
+  `).join('');
+};
 
-  const renderGames = () => {
-    if (!gamesBody) return;
-    gamesBody.innerHTML = '';
-    applyFilters(games, 'coaches', 'year').sort((a,b)=>b.year-a.year).forEach(g => {
-      const tr = document.createElement('tr');
-      tr.className = 'border-b border-white/5';
-      tr.innerHTML = `
-        <td class="p-3">${g.year ?? ''}</td>
-        <td class="p-3">${g.homeCoach ?? ''}</td>
-        <td class="p-3">${g.awayCoach ?? ''}</td>
-        <td class="p-3 flex gap-2 items-center">${teamBadge(g.homeTeam || '')}<span class="text-subtle text-xs">vs</span>${teamBadge(g.awayTeam || '')}</td>
-        <td class="p-3">${(g.homeScore ?? '')}-${(g.awayScore ?? '')}</td>
-        <td class="p-3 font-semibold">${g.winner ?? ''}</td>`;
-      gamesBody.appendChild(tr);
-    });
-  };
+const renderNattys = () => {
+  nattyBody.innerHTML = [...NATIONALS].sort((a,b)=> (b.year||0)-(a.year||0)).map(n => `
+    <tr class="border-t border-white/5">
+      <td class="p-3">${n.year ?? ''}</td>
+      <td class="p-3">${chip(n.team||'')}</td>
+      <td class="p-3">${n.coach ?? ''}</td>
+      <td class="p-3">${n.record ?? ''}</td>
+    </tr>
+  `).join('');
+};
 
-  const renderHeisman = () => {
-    if (!heismanBody) return;
-    heismanBody.innerHTML = '';
-    applyFilters(heisman, 'coach', 'year').sort((a,b)=>b.year-a.year).forEach(h => {
-      heismanBody.innerHTML += `
-        <tr class="border-b border-white/5">
-          <td class="p-3">${h.year ?? ''}</td>
-          <td class="p-3">${h.player ?? ''}</td>
-          <td class="p-3">${teamBadge(h.school || '')}</td>
-        </tr>`;
-    });
-  };
+// === Init ===
+const init = async () => {
+  submitLink.href = SUBMIT_URL;
 
-  const renderNattys = () => {
-    if (!nattyBody) return;
-    nattyBody.innerHTML = '';
-    applyFilters(nationals, 'coach', 'year').sort((a,b)=>b.year-a.year).forEach(n => {
-      nattyBody.innerHTML += `
-        <tr class="border-b border-white/5">
-          <td class="p-3">${n.year ?? ''}</td>
-          <td class="p-3">${teamBadge(n.team || '')}</td>
-          <td class="p-3">${n.coach ?? ''}</td>
-          <td class="p-3">${n.record ?? ''}</td>
-        </tr>`;
-    });
-  };
+  // Load all data safely with fallbacks
+  const [colors, coaches, games, heisman, nationals] = await Promise.all([
+    safeFetchJson(`${DATA_DIR}/colors.json`, {}),
+    safeFetchJson(`${DATA_DIR}/coaches.json`, COACHES),
+    safeFetchJson(`${DATA_DIR}/games.json`, []),
+    safeFetchJson(`${DATA_DIR}/heisman.json`, []),
+    safeFetchJson(`${DATA_DIR}/nationals.json`, []),
+  ]);
 
-  coachFilter?.addEventListener('change', ()=>{renderGames();renderHeisman();renderNattys();});
-  yearFilter?.addEventListener('input',  ()=>{renderGames();renderHeisman();renderNattys();});
+  COLORS = colors || {};
+  COACHES = Array.isArray(coaches) ? coaches : COACHES;
+  GAMES = Array.isArray(games) ? games : [];
+  HEISMAN = Array.isArray(heisman) ? heisman : [];
+  NATIONALS = Array.isArray(nationals) ? nationals : [];
 
-  renderGames(); renderHeisman(); renderNattys();
-})();
+  renderLegend();
+  renderFilters();
+  renderGames();
+  renderHeisman();
+  renderNattys();
+
+  coachFilter.addEventListener('change', renderGames);
+  yearFilter.addEventListener('input', renderGames);
+
+  tabGames.addEventListener('click', () => showPanel(true,false,false));
+  tabHeisman.addEventListener('click', () => showPanel(false,true,false));
+  tabNattys.addEventListener('click', () => showPanel(false,false,true));
+};
+document.addEventListener('DOMContentLoaded', init);
