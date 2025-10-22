@@ -1,0 +1,24 @@
+name: National Champion
+description: Record a national champion
+title: "[Natty] Team (Year)"
+labels: ["submission","natty"]
+body:
+  - type: input
+    id: year
+    attributes: { label: Year, placeholder: "2025" }
+    validations: { required: true }
+
+  - type: input
+    id: team
+    attributes: { label: Champion Team, placeholder: "Texas A&M" }
+    validations: { required: true }
+
+  - type: input
+    id: coach
+    attributes: { label: Coach, placeholder: "Cameron" }
+    validations: { required: true }
+
+  - type: input
+    id: record
+    attributes: { label: Record, placeholder: "14-1" }
+    validations: { required: false }
