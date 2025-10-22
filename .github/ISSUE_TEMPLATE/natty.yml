@@ -1,7 +1,7 @@
 name: National Champion
-description: Record a national champion
-title: "[Natty] Team (Year)"
+description: Submit a national champion
 labels: ["submission","natty"]
+title: "[Natty] Team (Year)"
 body:
   - type: input
     id: year
@@ -21,4 +21,3 @@ body:
   - type: input
     id: record
     attributes: { label: Record, placeholder: "14-1" }
-    validations: { required: false }
