@@ -1,0 +1,6 @@
+{
+  "LSU":       { "primary": "#461D7C", "secondary": "#FDD023" },
+  "Florida":   { "primary": "#0021A5", "secondary": "#FA4616" },
+  "Texas A&M": { "primary": "#500000", "secondary": "#FFFFFF" },
+  "Oregon":    { "primary": "#154733", "secondary": "#FEE123" }
+}
