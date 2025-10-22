@@ -1,0 +1,44 @@
+name: Game Result
+description: Record a head-to-head game
+title: "[Game] Home vs Away (Year)"
+labels: ["submission","game"]
+body:
+  - type: input
+    id: year
+    attributes: { label: Year, placeholder: "2025" }
+    validations: { required: true }
+
+  - type: input
+    id: homeCoach
+    attributes: { label: Home Coach, placeholder: "Daniel" }
+    validations: { required: true }
+
+  - type: input
+    id: awayCoach
+    attributes: { label: Away Coach, placeholder: "Tucker" }
+    validations: { required: true }
+
+  - type: input
+    id: homeTeam
+    attributes: { label: Home Team, placeholder: "LSU" }
+    validations: { required: true }
+
+  - type: input
+    id: awayTeam
+    attributes: { label: Away Team, placeholder: "Florida" }
+    validations: { required: true }
+
+  - type: input
+    id: homeScore
+    attributes: { label: Home Score, placeholder: "28" }
+    validations: { required: true }
+
+  - type: input
+    id: awayScore
+    attributes: { label: Away Score, placeholder: "35" }
+    validations: { required: true }
+
+  - type: input
+    id: winner
+    attributes: { label: Winner (Coach), placeholder: "Tucker" }
+    validations: { required: true }
