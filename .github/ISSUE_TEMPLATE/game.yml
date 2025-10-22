@@ -1,7 +1,7 @@
 name: Game Result
-description: Record a head-to-head game
-title: "[Game] Home vs Away (Year)"
+description: Submit a Head-to-Head game result
 labels: ["submission","game"]
+title: "[Game] Home vs Away (Year)"
 body:
   - type: input
     id: year
