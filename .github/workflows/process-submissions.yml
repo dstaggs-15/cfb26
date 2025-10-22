@@ -2,6 +2,7 @@ name: Process Dynasty Submissions
 on:
   issues:
     types: [opened]
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -14,18 +15,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # we need history to rebase
+          fetch-depth: 0
+          persist-credentials: true
+
+      # ---- 1) Sync with remote BEFORE touching files ----
+      - name: Configure git & initial sync (rebase)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin ${{ github.event.repository.default_branch }}
+          git checkout ${{ github.event.repository.default_branch }}
+          git pull --rebase origin ${{ github.event.repository.default_branch }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
+      # ---- 2) Parse Issue -> JSON (safe) ----
       - name: Parse Issue Form -> JSON
         id: parse
         uses: actions/github-script@v7
         with:
           script: |
-            const body = context.payload.issue.body || ''
+            const body = context.payload.issue?.body || ''
             const lines = body.split('\n').map(l => l.trim())
             const val = (label) => {
               const i = lines.findIndex(l => l.replace(/\*/g,'').toLowerCase() === label.toLowerCase())
@@ -33,9 +45,8 @@ jobs:
               for (let j = i+1; j < lines.length; j++) if (lines[j]) return lines[j]
               return ''
             }
-
-            const labels = (context.payload.issue.labels||[]).map(l=>l.name.toLowerCase())
-            const title = (context.payload.issue.title||'').toLowerCase()
+            const labels = (context.payload.issue?.labels||[]).map(l=>l.name.toLowerCase())
+            const title  = (context.payload.issue?.title||'').toLowerCase()
             let type = labels.includes('game') ? 'game'
                      : labels.includes('heisman') ? 'heisman'
                      : labels.includes('natty') ? 'natty'
@@ -45,87 +56,100 @@ jobs:
 
             const payload = {
               type,
-              year: val('Year'),
-              homeCoach: val('Home Coach'),
-              awayCoach: val('Away Coach'),
-              homeTeam: val('Home Team'),
-              awayTeam: val('Away Team'),
-              homeScore: val('Home Score'),
-              awayScore: val('Away Score'),
-              winner: val('Winner (Coach)'),
-              player: val('Player'),
-              school: val('School'),
-              team: val('Champion Team'),
-              coach: val('Coach'),
-              record: val('Record')
+              year:       val('Year'),
+              homeCoach:  val('Home Coach'),
+              awayCoach:  val('Away Coach'),
+              homeTeam:   val('Home Team'),
+              awayTeam:   val('Away Team'),
+              homeScore:  val('Home Score'),
+              awayScore:  val('Away Score'),
+              winner:     val('Winner (Coach)'),
+              player:     val('Player'),
+              school:     val('School'),
+              team:       val('Champion Team'),
+              coach:      val('Coach'),
+              record:     val('Record')
             }
-            core.setOutput('json', JSON.stringify(payload, null, 2))
+            core.setOutput('json', JSON.stringify(payload))
 
-      - name: Append to data files
+      # ---- 3) Apply changes to data files (defensive) ----
+      - name: Append to data files (safe)
+        env:
+          FORM_JSON: ${{ steps.parse.outputs.json }}
         run: |
           node -e '
             const fs = require("fs");
-            const p = JSON.parse(process.env.FORM_JSON);
-            const ensure = (path, init) => { if (!fs.existsSync(path)) fs.writeFileSync(path, JSON.stringify(init, null, 2)); };
-            ensure("data/games.json", []);
-            ensure("data/heisman.json", []);
-            ensure("data/nationals.json", []);
+            const parseSafe = (s, fb) => { try { return JSON.parse(s); } catch { return fb; } };
 
-            const year = Number(p.year)||null;
+            const raw = process.env.FORM_JSON || "{}";
+            const p = parseSafe(raw, {});
+            if (!p || Object.keys(p).length === 0) { console.log("No payload parsed. Skipping."); process.exit(0); }
+
+            const ensureArrayFile = (path) => {
+              if (!fs.existsSync(path) || fs.readFileSync(path,"utf8").trim() === "") {
+                fs.writeFileSync(path, "[]");
+              } else {
+                try { JSON.parse(fs.readFileSync(path,"utf8")); } catch { fs.writeFileSync(path, "[]"); }
+              }
+            };
+            ["data/games.json","data/heisman.json","data/nationals.json"].forEach(ensureArrayFile);
+
             const save = (path, arr) => fs.writeFileSync(path, JSON.stringify(arr, null, 2));
+            const year = Number(p.year) || null;
 
             if (p.type === "game") {
+              if (!(year && p.homeCoach && p.awayCoach && p.homeTeam && p.awayTeam)) { console.log("Incomplete game; skip."); process.exit(0); }
               const rec = {
                 year,
                 homeCoach: p.homeCoach, awayCoach: p.awayCoach,
-                homeTeam: p.homeTeam, awayTeam: p.awayTeam,
+                homeTeam: p.homeTeam,   awayTeam: p.awayTeam,
                 homeScore: Number(p.homeScore)||0, awayScore: Number(p.awayScore)||0,
-                winner: p.winner,
+                winner: p.winner || "",
                 coaches: [p.homeCoach, p.awayCoach]
               };
               const path = "data/games.json";
-              const arr = JSON.parse(fs.readFileSync(path));
+              const arr = parseSafe(fs.readFileSync(path,"utf8"), []);
               const key = r => [r.year,r.homeCoach,r.awayCoach,r.homeTeam,r.awayTeam,r.homeScore,r.awayScore].join("|");
               const exists = new Set(arr.map(key));
               if (!exists.has(key(rec))) arr.push(rec);
               save(path, arr);
+            }
 
-            } else if (p.type === "heisman") {
-              const rec = { year, player: p.player, school: p.school };
+            if (p.type === "heisman") {
+              if (!(year && p.player && p.school)) { console.log("Incomplete heisman; skip."); process.exit(0); }
               const path = "data/heisman.json";
-              const arr = JSON.parse(fs.readFileSync(path));
+              const arr = parseSafe(fs.readFileSync(path,"utf8"), []);
+              const rec = { year, player: p.player, school: p.school };
               const idx = arr.findIndex(x => x.year === year);
               if (idx >= 0) arr[idx] = rec; else arr.push(rec);
               save(path, arr);
+            }
 
-            } else if (p.type === "natty") {
-              const rec = { year, team: p.team, coach: p.coach, record: p.record||"" };
+            if (p.type === "natty") {
+              if (!(year && p.team && p.coach)) { console.log("Incomplete natty; skip."); process.exit(0); }
               const path = "data/nationals.json";
-              const arr = JSON.parse(fs.readFileSync(path));
+              const arr = parseSafe(fs.readFileSync(path,"utf8"), []);
+              const rec = { year, team: p.team, coach: p.coach, record: p.record||"" };
               const idx = arr.findIndex(x => x.year === year);
               if (idx >= 0) arr[idx] = rec; else arr.push(rec);
               save(path, arr);
             }
           '
-        env:
-          FORM_JSON: ${{ steps.parse.outputs.json }}
 
-      # NEW: make sure we’re up-to-date before pushing
-      - name: Sync with remote (rebase)
+      # ---- 4) Commit & push (with rebase retry) ----
+      - name: Commit and push changes
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin ${{ github.event.repository.default_branch }}
-          git checkout ${{ github.event.repository.default_branch }}
-          git pull --rebase origin ${{ github.event.repository.default_branch }}
+          git add data/*.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore(data): append from issue #${{ github.event.issue.number }}"
+            git push origin HEAD:${{ github.event.repository.default_branch }} || \
+            (git pull --rebase origin ${{ github.event.repository.default_branch }} && \
+             git push origin HEAD:${{ github.event.repository.default_branch }})
+          fi
 
-      - name: Commit data changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore(data): append from issue #${{ github.event.issue.number }}"
-          branch: ${{ github.event.repository.default_branch }}
-          push_options: --force-with-lease
-
+      # ---- 5) Close the issue ----
       - name: Close issue
         uses: actions/github-script@v7
         with:
