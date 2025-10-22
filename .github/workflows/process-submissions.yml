@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      # ---- 1) Sync with remote BEFORE touching files ----
+      # 1) sync with remote BEFORE editing files
       - name: Configure git & initial sync (rebase)
         run: |
           git config user.name "github-actions[bot]"
@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: '20'
 
-      # ---- 2) Parse Issue -> JSON (safe) ----
+      # 2) turn the Issue body into JSON (supports headings like "### Year")
       - name: Parse Issue Form -> JSON
         id: parse
         uses: actions/github-script@v7
@@ -39,10 +39,12 @@ jobs:
           script: |
             const body = context.payload.issue?.body || ''
             const lines = body.split('\n').map(l => l.trim())
+            const clean = (s) => s.replace(/^[#*]+\s*/,'').replace(/[*#]/g,'').trim().toLowerCase()
             const val = (label) => {
-              const i = lines.findIndex(l => l.replace(/\*/g,'').toLowerCase() === label.toLowerCase())
+              const target = label.toLowerCase()
+              const i = lines.findIndex(l => clean(l) === target)
               if (i === -1) return ''
-              for (let j = i+1; j < lines.length; j++) if (lines[j]) return lines[j]
+              for (let j = i+1; j < lines.length; j++) if (lines[j]) return lines[j].trim()
               return ''
             }
             const labels = (context.payload.issue?.labels||[]).map(l=>l.name.toLowerCase())
@@ -56,23 +58,23 @@ jobs:
 
             const payload = {
               type,
-              year:       val('Year'),
-              homeCoach:  val('Home Coach'),
-              awayCoach:  val('Away Coach'),
-              homeTeam:   val('Home Team'),
-              awayTeam:   val('Away Team'),
-              homeScore:  val('Home Score'),
-              awayScore:  val('Away Score'),
-              winner:     val('Winner (Coach)'),
-              player:     val('Player'),
-              school:     val('School'),
-              team:       val('Champion Team'),
-              coach:      val('Coach'),
-              record:     val('Record')
+              year:       val('year'),
+              homeCoach:  val('home coach'),
+              awayCoach:  val('away coach'),
+              homeTeam:   val('home team'),
+              awayTeam:   val('away team'),
+              homeScore:  val('home score'),
+              awayScore:  val('away score'),
+              winner:     val('winner (coach)'),
+              player:     val('player'),
+              school:     val('school'),
+              team:       val('champion team'),
+              coach:      val('coach'),
+              record:     val('record')
             }
             core.setOutput('json', JSON.stringify(payload))
 
-      # ---- 3) Apply changes to data files (defensive) ----
+      # 3) write to data files (defensive, never crash on empty)
       - name: Append to data files (safe)
         env:
           FORM_JSON: ${{ steps.parse.outputs.json }}
@@ -136,7 +138,7 @@ jobs:
             }
           '
 
-      # ---- 4) Commit & push (with rebase retry) ----
+      # 4) commit & push (with rebase retry if race)
       - name: Commit and push changes
         run: |
           git add data/*.json
@@ -149,7 +151,7 @@ jobs:
              git push origin HEAD:${{ github.event.repository.default_branch }})
           fi
 
-      # ---- 5) Close the issue ----
+      # 5) close the issue
       - name: Close issue
         uses: actions/github-script@v7
         with:
