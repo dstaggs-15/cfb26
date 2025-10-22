@@ -3,14 +3,15 @@ on:
   issues:
     types: [opened]
 
+# ✅ These scopes are required to write to the repo AND modify issues
 permissions:
   contents: write
-  issues: read
+  issues: write
+  pull-requests: write
 
 jobs:
   parse-and-append:
     runs-on: ubuntu-latest
-    # IMPORTANT: no label guard here, so it will NOT skip
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -30,7 +31,6 @@ jobs:
               return ''
             }
 
-            // Determine type using labels or title prefix; fall back to 'game'
             const labels = (context.payload.issue.labels||[]).map(l=>l.name.toLowerCase())
             const title = (context.payload.issue.title||'').toLowerCase()
             let type = labels.includes('game') ? 'game'
@@ -86,6 +86,7 @@ jobs:
               const exists = new Set(arr.map(key));
               if (!exists.has(key(rec))) arr.push(rec);
               save(path, arr);
+
             } else if (p.type === "heisman") {
               const rec = { year, player: p.player, school: p.school };
               const path = "data/heisman.json";
@@ -93,6 +94,7 @@ jobs:
               const idx = arr.findIndex(x => x.year === year);
               if (idx >= 0) arr[idx] = rec; else arr.push(rec);
               save(path, arr);
+
             } else if (p.type === "natty") {
               const rec = { year, team: p.team, coach: p.coach, record: p.record||"" };
               const path = "data/nationals.json";
@@ -105,15 +107,17 @@ jobs:
         env:
           FORM_JSON: ${{ steps.parse.outputs.json }}
 
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - name: Commit data changes
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore(data): append from issue #${{ github.event.issue.number }}"
+          branch: ${{ github.ref_name }}  # commit back to main
 
       - name: Close issue
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.update({
+            await github.rest.issues.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
